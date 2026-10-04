@@ -1,7 +1,8 @@
+import { apiFetch } from '../lib/api';
 import React, { useState } from 'react';
 import { Play, Loader2 } from 'lucide-react';
 
-const Terminal = ({ code, language }) => {
+const Terminal = ({ code, language, roomId }) => {
     const [output, setOutput] = useState('');
     const [isRunning, setIsRunning] = useState(false);
     const [activeTab, setActiveTab] = useState('OUTPUT');
@@ -18,10 +19,10 @@ const Terminal = ({ code, language }) => {
         setOutput('[System] Executing code inside Docker container...\n');
 
         try {
-            const res = await fetch('http://localhost:5001/api/execute', {
+            const res = await apiFetch('/api/execute', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code, language })
+                body: JSON.stringify({ code, language, roomId })
             });
             const data = await res.json();
 
@@ -29,7 +30,7 @@ const Terminal = ({ code, language }) => {
                 if (data.success) {
                     setOutput((prev) => prev + `[Output]\n${data.output}`);
                 } else {
-                    setOutput((prev) => prev + `[Execution Error]\n${data.error}`);
+                    setOutput((prev) => prev + `[Execution Error]\n${data.error}\n${data.output || ''}`);
                 }
             } else {
                 setOutput((prev) => prev + `[Server Error]\n${data.error || 'Failed to execute code'}`);

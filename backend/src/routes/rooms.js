@@ -11,19 +11,14 @@ const generateRoomKey = () => {
 
 // Create a new room
 router.post('/create', async (req, res) => {
-    const { username } = req.body;
+    const { username } = req.user;
 
     if (!username) {
         return res.status(400).json({ error: 'Username is required' });
     }
 
     try {
-        // 1. Create or find user
-        let userRes = await query('SELECT * FROM users WHERE username = $1', [username]);
-        if (userRes.rows.length === 0) {
-            userRes = await query('INSERT INTO users (username) VALUES ($1) RETURNING *', [username]);
-        }
-        const user = userRes.rows[0];
+        const user = req.user;
 
         // 2. Create room
         let roomKey;
@@ -44,7 +39,7 @@ router.post('/create', async (req, res) => {
 
         // 3. Add user as leader in room_members
         await query(
-            'INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)',
+            'INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (room_id, user_id) DO NOTHING',
             [room.id, user.id, 'leader']
         );
 
@@ -69,19 +64,16 @@ router.post('/create', async (req, res) => {
 
 // Join an existing room
 router.post('/join', async (req, res) => {
-    const { username, roomKey } = req.body;
+    const { username } = req.user;
+    const { roomKey } = req.body || {};
+    if (typeof roomKey !== 'string' || !/^[A-F0-9]{6}$/.test(roomKey)) return res.status(400).json({ error: 'Invalid room key' });
 
     if (!username || !roomKey) {
         return res.status(400).json({ error: 'Username and Room Key are required' });
     }
 
     try {
-        // 1. Create or find user
-        let userRes = await query('SELECT * FROM users WHERE username = $1', [username]);
-        if (userRes.rows.length === 0) {
-            userRes = await query('INSERT INTO users (username) VALUES ($1) RETURNING *', [username]);
-        }
-        const user = userRes.rows[0];
+        const user = req.user;
 
         // 2. Find room
         const roomRes = await query('SELECT * FROM rooms WHERE room_key = $1', [roomKey]);
@@ -99,7 +91,7 @@ router.post('/join', async (req, res) => {
         let role = 'member';
         if (memberRes.rows.length === 0) {
             await query(
-                'INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3)',
+                'INSERT INTO room_members (room_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT (room_id, user_id) DO NOTHING',
                 [room.id, user.id, 'member']
             );
         } else {

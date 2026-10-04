@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/dashboard/Sidebar';
@@ -10,18 +11,17 @@ import { useSocket } from '../context/SocketContext';
 
 const Dashboard = () => {
     const navigate = useNavigate();
-    const { connectSocket, setUser } = useSocket();
+    const { connectSocket, setUser, user } = useSocket();
 
     // Modal states
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isJoinOpen, setIsJoinOpen] = useState(false); // Can be triggered by another button if we want
 
-    const generateDashboardName = () => `Dev_${Math.floor(Math.random() * 10000)}`;
-
     const handleCreateRoom = async ({ roomName, language, privacy }) => {
-        const username = generateDashboardName();
+        if (!user) { navigate('/'); return; }
+        const username = user.username;
         try {
-            const res = await fetch('http://localhost:5001/api/rooms/create', {
+            const res = await apiFetch('/api/rooms/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username })
