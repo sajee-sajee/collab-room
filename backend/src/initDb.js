@@ -31,7 +31,12 @@ export const initDb = async () => {
 
     try {
         await query(createUsersTable);
-        console.log('Users table initialized');
+        await query('ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT');
+        await query(`CREATE TABLE IF NOT EXISTS sessions (
+            token_hash TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            expires_at TIMESTAMPTZ NOT NULL
+        )`);
 
         await query(createRoomsTable);
         console.log('Rooms table initialized');
@@ -39,6 +44,6 @@ export const initDb = async () => {
         await query(createRoomMembersTable);
         console.log('Room members table initialized');
     } catch (err) {
-        console.error('Error initializing database:', err);
+        throw err;
     }
 };

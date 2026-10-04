@@ -1,3 +1,4 @@
+import { apiFetch } from '../lib/api';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
@@ -16,7 +17,7 @@ import JoinRoomModal from '../components/modals/JoinRoomModal';
 
 const Home = () => {
     const navigate = useNavigate();
-    const { connectSocket, setUser } = useSocket();
+    const { connectSocket, setUser, user } = useSocket();
 
     // Modal States
     const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -24,15 +25,11 @@ const Home = () => {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isJoinOpen, setIsJoinOpen] = useState(false);
 
-    // Existing Backend Logic integration (Username is still required by backend)
-    // For this UI, we will auto-generate a username if not logged in to keep the UX smooth,
-    // or we could prompt for it. For now, we'll use a random guest name.
-    const generateGuestName = () => `Dev_${Math.floor(Math.random() * 10000)}`;
-
     const handleCreateRoom = async ({ roomName, language, privacy }) => {
-        const username = generateGuestName();
+        if (!user) { setIsAuthOpen(true); return; }
+        const username = user.username;
         try {
-            const res = await fetch('http://localhost:5001/api/rooms/create', {
+            const res = await apiFetch('/api/rooms/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username })
@@ -54,9 +51,10 @@ const Home = () => {
     };
 
     const handleJoinRoomSubmit = async ({ roomKey }) => {
-        const username = generateGuestName();
+        if (!user) { setIsAuthOpen(true); return; }
+        const username = user.username;
         try {
-            const res = await fetch('http://localhost:5001/api/rooms/join', {
+            const res = await apiFetch('/api/rooms/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, roomKey })

@@ -1,130 +1,89 @@
-<div align="center">
-  <img src="https://img.icons8.com/color/96/000000/code.png" alt="CollabRoom Logo" width="80" />
-  <h1>CollabRoom</h1>
-  <p><strong>A Real-Time Collaborative Web IDE</strong></p>
-  
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-  [![React](https://img.shields.io/badge/React-18.x-blue.svg)](https://reactjs.org/)
-  [![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org/)
-  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16.x-blue.svg)](https://www.postgresql.org/)
-  [![Docker](https://img.shields.io/badge/Docker-Enabled-blue.svg)](https://www.docker.com/)
-</div>
+# CollabRoom
 
-<br />
+A learning prototype for collaborative editing, chat and Docker-based JavaScript/Python execution.
 
-CollabRoom is a powerful, real-time collaborative coding environment that brings your team together in a single browser tab. Designed with a premium dark-themed SaaS aesthetic, it offers low-latency code syncing, isolated execution environments, and integrated team chat.
+## Implemented
 
-## ✨ Features
+- Username/password registration and sign-in (scrypt password hashes)
+- Random, hashed server-side session tokens with an eight-hour lifetime and logout
+- PostgreSQL room membership checked by HTTP and Socket.IO handlers
+- Monaco editor, code updates and bounded in-memory chat history
+- Execution quotas, two concurrent runs per process and five-second execution timeouts
+- Non-root containers with no network, read-only root filesystem, memory/CPU/PID limits and bounded returned logs
 
-- **Real-Time IDE:** Edit code simultaneously with teammates using the powerful Monaco Editor (the engine behind VS Code).
-- **Isolated Execution:** Run untrusted code safely and securely inside dynamic Docker containers directly from the UI.
-- **Integrated Team Chat:** Communicate in real-time without leaving your development environment.
-- **Premium UI/UX:** A stunning, responsive interface built with Tailwind CSS, featuring an authenticated dashboard, floating modals, and a robust grid-based editor layout.
-- **Multi-Language Support:** Currently supports Node.js (JavaScript) and Python execution.
-- **Persistent Rooms:** Workspaces are backed by PostgreSQL, allowing you to return to your projects later.
+**Status:** suitable for local development and review. Docker restrictions are defense in depth, not a guarantee that hostile code is safe. Do not expose a shared developer Docker daemon as a public execution service.
 
-## 🛠 Tech Stack
+## Setup
 
-**Frontend:**
-- [React (Vite)](https://react.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Monaco Editor](https://microsoft.github.io/monaco-editor/)
-- [Socket.IO Client](https://socket.io/)
-- [Lucide React](https://lucide.dev/) (Icons)
-
-**Backend:**
-- [Node.js](https://nodejs.org/) & [Express](https://expressjs.com/)
-- [Socket.IO](https://socket.io/) (Real-time WebSockets)
-- [PostgreSQL](https://www.postgresql.org/) with `pg` (Database)
-- [Dockerode](https://github.com/apocas/dockerode) (Docker Container Management)
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-Ensure you have the following installed on your machine:
-- Node.js (v18 or higher)
-- PostgreSQL
-- Docker Desktop (Must be running for code execution)
-
-### 1. Database Setup
-
-Create a PostgreSQL database named `collab_db`:
+Requires Node.js 22, npm, PostgreSQL and a local Docker engine on the backend machine. Docker Desktop must permit bind mounts from the OS temporary directory.
 
 ```bash
-# Log into your local postgres instance
-psql -U postgres
-# Create the database
-CREATE DATABASE collab_db;
+git clone https://github.com/sajee-sajee/collab-room.git
+cd collab-room
+createdb collab_db
+docker pull node:22-alpine
+docker pull python:3.12-alpine
+cd backend
+npm ci
+cp .env.example .env
 ```
 
-### 2. Backend Setup
+Set your PostgreSQL credentials in `backend/.env`:
 
-Navigate to the backend directory and install dependencies:
+```dotenv
+PORT=5001
+HOST=127.0.0.1
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/collab_db
+FRONTEND_ORIGIN=http://localhost:5173
+```
+
+```bash
+npm run dev
+```
+
+Database tables are initialized before the server accepts traffic. Existing guest users receive no password automatically: register a new username. Existing guest rooms are not automatically assigned to new accounts.
+
+In a second terminal:
+
+```bash
+cd collab-room/frontend
+npm ci
+cp .env.example .env
+npm run dev
+```
+
+The frontend uses `VITE_API_URL=http://localhost:5001`. Open `http://localhost:5173`; configure the backend origin if Vite uses a different port.
+
+## Demonstrate the project
+
+1. Register with a username (3–32 letters, digits or underscores) and password (12–128 characters).
+2. Create a room, then copy the six-character room key from its URL.
+3. In another browser session, register a second account and join using that key.
+4. Edit code and send a chat message to observe synchronization.
+5. Run `console.log("Hello from CollabRoom")` and inspect its output.
+6. Run an infinite loop to check the timeout error, then run the greeting again.
+7. Sign out. Requests using the revoked session should be rejected.
+
+Room keys are invitations: any authenticated user who knows a key can join. They are not a substitute for private invitations or administrator-controlled access.
+
+## Validation
 
 ```bash
 cd backend
-npm install
+npm test
+cd ../frontend
+npm run build
 ```
 
-Create a `.env` file in the `backend` directory with the following variables:
+The backend suite checks password verification, access rejection, rate limiting, execution input and room membership, Unicode output, failure handling and cleanup. CI also runs registration, session, room access and logout checks against a dedicated PostgreSQL service. Locally this integration test is skipped unless `TEST_DATABASE_URL` is set. Docker calls are mocked in unit tests; use the demonstration above to verify a real Docker/PostgreSQL environment.
 
-```env
-PORT=5001
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/collab_db
-```
-*(Replace `YOUR_PASSWORD` with your actual Postgres password).*
+## Architecture and limitations
 
-Start the backend server. The server will automatically initialize the necessary database tables on startup:
+React → Express/Socket.IO → PostgreSQL; the execution route starts short-lived Docker containers.
 
-```bash
-npm run dev
-# Server should output: "Server is running on port 5001"
-```
-
-### 3. Frontend Setup
-
-In a new terminal, navigate to the frontend directory and install dependencies:
-
-```bash
-cd frontend
-npm install
-```
-
-Start the Vite development server:
-
-```bash
-npm run dev
-```
-
-The application will be available at `http://localhost:5173`.
-
----
-
-## 💻 Usage
-
-1. Open `http://localhost:5173` in your browser.
-2. Click **"Log In"** or **"Sign Up"** (Currently uses a UI mock flow that bypasses strict auth for demonstration).
-3. On the Dashboard, click **"New Project"** or the **"Create New Room"** card.
-4. Enter a room name and select your preferred language.
-5. Once inside the editor, you can share the URL with a friend to collaborate in real-time.
-6. Write your JavaScript or Python code.
-7. Click the purple **"RUN CODE"** button in the terminal pane to spin up a Docker container and execute your code safely.
-
----
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome!
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+- Room membership persists; editor contents and chat are in memory and disappear when the last participant leaves or the backend restarts.
+- User sessions are stored in browser session storage; reloading currently requires signing in again. Password reset, email verification and OAuth are not implemented.
+- Some dashboard, pricing and workspace controls remain presentation prototypes. Room title/language/privacy choices are not all persisted.
+- Rate limits, concurrency and collaboration state are process-local. Multiple replicas require shared coordination.
+- Use HTTPS, isolated execution workers, monitoring, backups and a security review before a public deployment.
+- Automated checks do not establish production readiness or a completed security audit.

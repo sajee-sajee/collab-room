@@ -25,7 +25,11 @@ const Room = () => {
             return;
         }
 
-        socket.emit('join_room', { roomId, username: user.username });
+        const join = () => socket.emit('join_room', { roomId });
+        const showError = (message) => alert(message);
+        socket.on('connect', join);
+        socket.on('room_error', showError);
+        if (socket.connected) join();
 
         socket.on('room_state', (state) => {
             if (state.code) setCode(state.code);
@@ -37,6 +41,8 @@ const Room = () => {
         });
 
         return () => {
+            socket.off('connect', join);
+            socket.off('room_error', showError);
             socket.off('room_state');
             socket.off('language_update');
         };
@@ -45,12 +51,12 @@ const Room = () => {
     if (!user) return null;
 
     // We can simulate active users using the current user + a dummy for UI richness
-    const activeUsers = [user, { username: 'Sarah' }];
+    const activeUsers = [user];
 
     return (
         <div className="flex flex-col h-screen bg-background text-gray-100 overflow-hidden font-sans">
 
-            <WorkspaceHeader projectName="Fintech_Dashboard_v2" activeUsers={activeUsers} />
+            <WorkspaceHeader projectName={`Room ${roomId}`} activeUsers={activeUsers} />
 
             <div className="flex flex-1 min-h-0">
                 <EditorSidebar />
@@ -83,7 +89,7 @@ const Room = () => {
                     </div>
 
                     {/* Terminal at bottom of middle column */}
-                    <Terminal code={code} language={language} />
+                    <Terminal code={code} language={language} roomId={roomId} />
 
                 </main>
 
